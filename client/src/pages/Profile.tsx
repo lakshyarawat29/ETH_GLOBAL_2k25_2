@@ -68,7 +68,7 @@ const Profile: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[url('assets/landing/bg2.svg')] bg-cover bg-center py-8 relative overflow-hidden">
+    <div className="min-h-screen bg-[url('assets/landing/bg3.svg')] bg-cover bg-center py-8 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse"></div>
