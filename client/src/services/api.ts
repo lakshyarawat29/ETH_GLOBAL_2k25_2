@@ -305,7 +305,7 @@ export const fetchBalances = async (
     if (walletAddress) {
       // Use personalized portfolio data
       const portfolio = await fetchUserPortfolio(walletAddress);
-      return portfolio.portfolio.map((asset) => ({
+      return portfolio.portfolio.map((asset: any) => ({
         token: asset.symbol,
         amount: asset.amount,
         usdValue: asset.usdValue,
@@ -393,5 +393,254 @@ export const fetchAPRData = async (): Promise<APRData[]> => {
   } catch (error) {
     console.error('Failed to fetch APR data:', error);
     return [];
+  }
+};
+
+// Profile API functions
+export interface UserProfile {
+  id: string;
+  walletAddress: string;
+  displayName?: string;
+  selectedBasket: number;
+  riskPreference?: 'Conservative' | 'Moderate' | 'Aggressive';
+  initialDepositAmount?: number;
+  investmentPeriod?: '1 month' | '3 months' | '6 months' | '1 year';
+  totalDeposits?: number;
+  totalEarned?: number;
+  activeSince?: string;
+  registrationTimestamp: string;
+  isRegistered: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const fetchUserProfile = async (
+  walletAddress: string
+): Promise<UserProfile | null> => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/users/${walletAddress}/profile`
+    );
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null; // User not found
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    return null;
+  }
+};
+
+export const updateUserProfile = async (
+  walletAddress: string,
+  profileData: Partial<
+    Pick<
+      UserProfile,
+      | 'displayName'
+      | 'riskPreference'
+      | 'initialDepositAmount'
+      | 'investmentPeriod'
+    >
+  >
+): Promise<UserProfile | null> => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/users/${walletAddress}/profile`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileData),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    return null;
+  }
+};
+
+export const completeUserProfile = async (
+  walletAddress: string,
+  profileData: {
+    displayName: string;
+    riskPreference: 'Conservative' | 'Moderate' | 'Aggressive';
+    initialDepositAmount: number;
+    investmentPeriod: '1 month' | '3 months' | '6 months' | '1 year';
+  }
+): Promise<UserProfile | null> => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/users/${walletAddress}/profile/complete`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileData),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error('Error completing user profile:', error);
+    return null;
+  }
+};
+
+// Wallet API functions
+export interface WalletBalance {
+  address: string;
+  ethBalance: string;
+  usdcBalance: string;
+  wethBalance: string;
+  totalValueUSD: number;
+}
+
+export interface DepositValidation {
+  isValid: boolean;
+  requestedAmount: string;
+  token: string;
+  availableBalance: string;
+  totalValueUSD: number;
+}
+
+export interface DepositTransaction {
+  transaction: {
+    to: string;
+    value: string;
+    data: string;
+    gasLimit: string;
+  };
+  amount: string;
+  token: string;
+  from: string;
+}
+
+export interface TransactionStatus {
+  hash: string;
+  from: string;
+  to: string;
+  value: string;
+  token: string;
+  timestamp: number;
+  status: 'pending' | 'confirmed' | 'failed';
+}
+
+export const fetchWalletBalance = async (
+  walletAddress: string
+): Promise<WalletBalance | null> => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/users/${walletAddress}/wallet/balance`
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error('Error fetching wallet balance:', error);
+    return null;
+  }
+};
+
+export const validateDeposit = async (
+  walletAddress: string,
+  amount: string,
+  token: 'ETH' | 'USDC' = 'ETH'
+): Promise<DepositValidation | null> => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/users/${walletAddress}/wallet/validate-deposit`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount, token }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error('Error validating deposit:', error);
+    return null;
+  }
+};
+
+export const prepareDepositTransaction = async (
+  walletAddress: string,
+  amount: string,
+  token: 'ETH' | 'USDC' = 'ETH'
+): Promise<DepositTransaction | null> => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/users/${walletAddress}/wallet/prepare-deposit`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount, token }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error('Error preparing deposit transaction:', error);
+    return null;
+  }
+};
+
+export const getTransactionStatus = async (
+  walletAddress: string,
+  txHash: string
+): Promise<TransactionStatus | null> => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/users/${walletAddress}/wallet/transaction/${txHash}`
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error('Error fetching transaction status:', error);
+    return null;
   }
 };

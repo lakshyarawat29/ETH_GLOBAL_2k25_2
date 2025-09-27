@@ -1,6 +1,7 @@
 import express from 'express';
 import { db } from '@/database/connection';
 import { hederaService } from '@/services/hederaService';
+import { walletService } from '@/services/walletService';
 import { logger } from '@/utils/logger';
 import { BASKET_CONFIGS } from '@/config';
 
@@ -409,6 +410,372 @@ router.get('/:address/dashboard', async (req, res) => {
 });
 
 /**
+ * GET /api/users/:address/profile
+ * Get user profile data
+ */
+router.get('/:address/profile', async (req, res) => {
+  try {
+    const { address } = req.params;
+
+    if (!isValidAddress(address)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid wallet address format',
+      });
+    }
+
+    // Get user profile data
+    const userResult = await db.query(
+      'SELECT * FROM users WHERE "wallet_address" = $1',
+      [address.toLowerCase()]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    logger.info(`Retrieved profile data for user: ${address}`);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: user.id,
+        walletAddress: user.wallet_address,
+        displayName: user.display_name,
+        selectedBasket: user.selected_basket,
+        riskPreference: user.risk_preference,
+        initialDepositAmount: user.initial_deposit_amount,
+        investmentPeriod: user.investment_period,
+        totalDeposits: user.total_deposits,
+        totalEarned: user.total_earned,
+        activeSince: user.active_since,
+        registrationTimestamp: user.registration_timestamp,
+        isRegistered: user.is_registered,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
+      },
+    });
+  } catch (error) {
+    logger.error('Error retrieving profile data:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * PUT /api/users/:address/profile
+ * Update user profile data
+ */
+router.put('/:address/profile', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const {
+      displayName,
+      riskPreference,
+      initialDepositAmount,
+      investmentPeriod,
+    } = req.body;
+
+    if (!isValidAddress(address)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid wallet address format',
+      });
+    }
+
+    // Validate risk preference
+    if (
+      riskPreference &&
+      !['Conservative', 'Moderate', 'Aggressive'].includes(riskPreference)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Invalid risk preference. Must be Conservative, Moderate, or Aggressive',
+      });
+    }
+
+    // Validate investment period
+    if (
+      investmentPeriod &&
+      !['1 month', '3 months', '6 months', '1 year'].includes(investmentPeriod)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Invalid investment period. Must be 1 month, 3 months, 6 months, or 1 year',
+      });
+    }
+
+    // Check if user exists
+    const userResult = await db.query(
+      'SELECT id FROM users WHERE "wallet_address" = $1',
+      [address.toLowerCase()]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Map risk preference to basket
+    let selectedBasket = null;
+    if (riskPreference) {
+      switch (riskPreference) {
+        case 'Conservative':
+          selectedBasket = 0;
+          break;
+        case 'Moderate':
+          selectedBasket = 1;
+          break;
+        case 'Aggressive':
+          selectedBasket = 2;
+          break;
+      }
+    }
+
+    // Build update query dynamically
+    const updateFields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (displayName !== undefined) {
+      updateFields.push(`display_name = $${paramIndex++}`);
+      values.push(displayName);
+    }
+    if (riskPreference !== undefined) {
+      updateFields.push(`risk_preference = $${paramIndex++}`);
+      values.push(riskPreference);
+    }
+    if (initialDepositAmount !== undefined) {
+      updateFields.push(`initial_deposit_amount = $${paramIndex++}`);
+      values.push(initialDepositAmount);
+    }
+    if (investmentPeriod !== undefined) {
+      updateFields.push(`investment_period = $${paramIndex++}`);
+      values.push(investmentPeriod);
+    }
+    if (selectedBasket !== null) {
+      updateFields.push(`selected_basket = $${paramIndex++}`);
+      values.push(selectedBasket);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields to update',
+      });
+    }
+
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(address.toLowerCase());
+
+    const updateQuery = `
+      UPDATE users 
+      SET ${updateFields.join(', ')} 
+      WHERE wallet_address = $${paramIndex}
+      RETURNING *
+    `;
+
+    const result = await db.query(updateQuery, values);
+    const updatedUser = result.rows[0];
+
+    logger.info(`Updated profile for user: ${address}`);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: updatedUser.id,
+        walletAddress: updatedUser.wallet_address,
+        displayName: updatedUser.display_name,
+        selectedBasket: updatedUser.selected_basket,
+        riskPreference: updatedUser.risk_preference,
+        initialDepositAmount: updatedUser.initial_deposit_amount,
+        investmentPeriod: updatedUser.investment_period,
+        totalDeposits: updatedUser.total_deposits,
+        totalEarned: updatedUser.total_earned,
+        activeSince: updatedUser.active_since,
+        registrationTimestamp: updatedUser.registration_timestamp,
+        isRegistered: updatedUser.is_registered,
+        createdAt: updatedUser.created_at,
+        updatedAt: updatedUser.updated_at,
+      },
+    });
+  } catch (error) {
+    logger.error('Error updating profile data:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /api/users/:address/profile/complete
+ * Complete user profile setup (register if not exists, update if exists)
+ */
+router.post('/:address/profile/complete', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const {
+      displayName,
+      riskPreference,
+      initialDepositAmount,
+      investmentPeriod,
+    } = req.body;
+
+    if (!isValidAddress(address)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid wallet address format',
+      });
+    }
+
+    if (
+      !displayName ||
+      !riskPreference ||
+      !initialDepositAmount ||
+      !investmentPeriod
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'All profile fields are required: displayName, riskPreference, initialDepositAmount, investmentPeriod',
+      });
+    }
+
+    // Validate risk preference
+    if (!['Conservative', 'Moderate', 'Aggressive'].includes(riskPreference)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Invalid risk preference. Must be Conservative, Moderate, or Aggressive',
+      });
+    }
+
+    // Validate investment period
+    if (
+      !['1 month', '3 months', '6 months', '1 year'].includes(investmentPeriod)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Invalid investment period. Must be 1 month, 3 months, 6 months, or 1 year',
+      });
+    }
+
+    // Map risk preference to basket
+    let selectedBasket: number;
+    switch (riskPreference) {
+      case 'Conservative':
+        selectedBasket = 0;
+        break;
+      case 'Moderate':
+        selectedBasket = 1;
+        break;
+      case 'Aggressive':
+        selectedBasket = 2;
+        break;
+      default:
+        throw new Error('Invalid risk preference');
+    }
+
+    // Check if user already exists
+    const existingUser = await db.query(
+      'SELECT id FROM users WHERE "wallet_address" = $1',
+      [address.toLowerCase()]
+    );
+
+    let user;
+
+    if (existingUser.rows.length > 0) {
+      // Update existing user
+      const updateResult = await db.query(
+        `UPDATE users 
+         SET display_name = $1, risk_preference = $2, initial_deposit_amount = $3, 
+             investment_period = $4, selected_basket = $5, updated_at = CURRENT_TIMESTAMP
+         WHERE wallet_address = $6
+         RETURNING *`,
+        [
+          displayName,
+          riskPreference,
+          initialDepositAmount,
+          investmentPeriod,
+          selectedBasket,
+          address.toLowerCase(),
+        ]
+      );
+      user = updateResult.rows[0];
+      logger.info(`Updated existing user profile: ${address}`);
+    } else {
+      // Create new user
+      const insertResult = await db.query(
+        `INSERT INTO users (wallet_address, display_name, risk_preference, initial_deposit_amount, 
+                           investment_period, selected_basket, total_deposits)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          address.toLowerCase(),
+          displayName,
+          riskPreference,
+          initialDepositAmount,
+          investmentPeriod,
+          selectedBasket,
+          initialDepositAmount,
+        ]
+      );
+      user = insertResult.rows[0];
+
+      // Log user registration to Hedera
+      await hederaService.logUserRegistration(
+        address,
+        selectedBasket,
+        riskPreference
+      );
+      logger.info(`Created new user profile: ${address}`);
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: user.id,
+        walletAddress: user.wallet_address,
+        displayName: user.display_name,
+        selectedBasket: user.selected_basket,
+        riskPreference: user.risk_preference,
+        initialDepositAmount: user.initial_deposit_amount,
+        investmentPeriod: user.investment_period,
+        totalDeposits: user.total_deposits,
+        totalEarned: user.total_earned,
+        activeSince: user.active_since,
+        registrationTimestamp: user.registration_timestamp,
+        isRegistered: user.is_registered,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
+      },
+    });
+  } catch (error) {
+    logger.error('Error completing profile setup:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
  * GET /api/users/:address/portfolio
  * Get user's portfolio details
  */
@@ -539,6 +906,204 @@ router.get('/:address/transactions', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error retrieving transactions:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /api/users/:address/wallet/balance
+ * Get wallet balance for a user
+ */
+router.get('/:address/wallet/balance', async (req, res) => {
+  try {
+    const { address } = req.params;
+
+    if (!isValidAddress(address)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid wallet address format',
+      });
+    }
+
+    const balance = await walletService.getWalletBalance(address);
+
+    logger.info(`Retrieved wallet balance for user: ${address}`);
+
+    return res.status(200).json({
+      success: true,
+      data: balance,
+    });
+  } catch (error) {
+    logger.error('Error retrieving wallet balance:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /api/users/:address/wallet/validate-deposit
+ * Validate if user can deposit the specified amount
+ */
+router.post('/:address/wallet/validate-deposit', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const { amount, token = 'ETH' } = req.body;
+
+    if (!isValidAddress(address)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid wallet address format',
+      });
+    }
+
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid deposit amount is required',
+      });
+    }
+
+    const isValid = await walletService.validateDepositAmount(
+      address,
+      amount,
+      token
+    );
+    const balance = await walletService.getWalletBalance(address);
+
+    logger.info(
+      `Validated deposit for user: ${address}, amount: ${amount} ${token}`
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        isValid,
+        requestedAmount: amount,
+        token,
+        availableBalance:
+          token === 'ETH' ? balance.ethBalance : balance.usdcBalance,
+        totalValueUSD: balance.totalValueUSD,
+      },
+    });
+  } catch (error) {
+    logger.error('Error validating deposit:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /api/users/:address/wallet/prepare-deposit
+ * Prepare deposit transaction data
+ */
+router.post('/:address/wallet/prepare-deposit', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const { amount, token = 'ETH' } = req.body;
+
+    if (!isValidAddress(address)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid wallet address format',
+      });
+    }
+
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid deposit amount is required',
+      });
+    }
+
+    // First validate the deposit amount
+    const isValid = await walletService.validateDepositAmount(
+      address,
+      amount,
+      token
+    );
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient balance for deposit',
+      });
+    }
+
+    const txData = await walletService.prepareDepositTransaction(
+      address,
+      amount,
+      token
+    );
+
+    logger.info(`Prepared deposit transaction for user: ${address}`);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        transaction: txData,
+        amount,
+        token,
+        from: address,
+      },
+    });
+  } catch (error) {
+    logger.error('Error preparing deposit transaction:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /api/users/:address/wallet/transaction/:txHash
+ * Get transaction status
+ */
+router.get('/:address/wallet/transaction/:txHash', async (req, res) => {
+  try {
+    const { address, txHash } = req.params;
+
+    if (!isValidAddress(address)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid wallet address format',
+      });
+    }
+
+    if (!txHash || !txHash.startsWith('0x')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid transaction hash format',
+      });
+    }
+
+    const transaction = await walletService.getTransactionStatus(txHash);
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction not found',
+      });
+    }
+
+    logger.info(`Retrieved transaction status: ${txHash}`);
+
+    return res.status(200).json({
+      success: true,
+      data: transaction,
+    });
+  } catch (error) {
+    logger.error('Error retrieving transaction status:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',
