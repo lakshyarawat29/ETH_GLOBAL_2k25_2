@@ -28,20 +28,22 @@ const Landing: React.FC = () => {
         {/* Top Right Buttons for md+ screens */}
         <div className="max-w-8xl mx-auto hidden md:flex items-center gap-4 justify-end">
           {/* <ConnectWalletButton /> */}
-          <button 
-            className="flex items-center space-x-2 px-6 py-2  text-white rounded-xl bg-purple-600 hover:bg-purple-700 transition-all duration-200" 
-            onClick={() => navigate('/auth')}
-          >
-            Connect Wallet
-          </button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
+            <motion.button
+            whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.98 }}
-            className="flex items-center space-x-2 px-6 py-2 border border-purple-600 text-white bg-white/10 backdrop-blur-sm rounded-xl hover:bg-white/20 transition-all duration-200"
-          >
-            <PlayIcon className="w-5 h-5" />
-            <span className='font-jetbrains'>Watch Demo</span>
-          </motion.button>
+            onClick={() => navigate('/auth')}
+            className="flex items-center space-x-2 px-6 py-2 text-white font-satoshi font-semibold rounded-2xl bg-gradient-to-br from-[#0b0b12] via-[#101022] to-[#161639] border-2 border-[#a855f7] hover:border-[#c084fc] shadow-[0_0_14px_rgba(168,85,247,0.25)] hover:shadow-[0_0_24px_rgba(192,132,252,0.45)] transition-all duration-200"
+            >
+            Connect Wallet
+            </motion.button>
+            <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center space-x-2 px-6 py-2 text-white font-satoshi font-semibold rounded-2xl bg-gradient-to-br from-[#0b0b12] via-[#101022] to-[#161639] border-2 border-[#a855f7] hover:border-[#c084fc] shadow-[0_0_14px_rgba(168,85,247,0.25)] hover:shadow-[0_0_24px_rgba(192,132,252,0.45)] transition-all duration-200"
+            >
+            <PlayIcon className="w-5 h-5 opacity-90" />
+            <span className="font-jetbrains">Watch Demo</span>
+            </motion.button>
         </div>
         
         <div className="mt-16 max-w-8xl mx-auto text-center">
@@ -53,7 +55,7 @@ const Landing: React.FC = () => {
             <h1 className="font-satoshi text-4xl sm:text-6xl lg:text-8xl font-bold text-white mb-10">
               Decentralized{' '}
               <span className="font-satoshi bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                Rebalancer Yielder
+          Rebalancer Yielder
               </span>
             </h1>
             
@@ -64,12 +66,12 @@ const Landing: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12 md:hidden">
               <ConnectWalletButton />
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center space-x-2 px-4 py-2 border border-purple-600 text-white rounded-xl hover:bg-purple-50 transition-all duration-200"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="flex items-center space-x-2 px-4 py-2 border border-purple-600 text-white rounded-xl hover:bg-purple-50 transition-all duration-200"
               >
-                <PlayIcon className="w-5 h-5" />
-                <span className='font-jetbrains'>Watch Demo</span>
+          <PlayIcon className="w-5 h-5" />
+          <span className='font-jetbrains'>Watch Demo</span>
               </motion.button>
             </div>
           </motion.div>
@@ -81,24 +83,24 @@ const Landing: React.FC = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="grid grid-cols-1 lg:grid-cols-3 gap-20 w-[70%] h-80 mx-auto pt-8"
           >
-            {stats.map((stat, index) => (
-              <div key={stat.label} className="moving-border rounded-2xl">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="card-content text-center bg-white/10 bg-opacity-10 backdrop-blur-md p-5 rounded-2xl min-h-80 flex flex-col justify-center"
-                >
-                  <img src={stat.image} className='w-12 h-12 mx-auto mb-4' alt='Stat Icon' />
-                  <div className="font-satoshi text-3xl sm:text-4xl font-bold text-white mb-5">
-                    {stat.value}
-                  </div>
-                  <div className="font-jetbrains text-gray-300">{stat.label}</div>
-                </motion.div>
+            {stats.map((stat) => (
+              <div key={stat.label} className="rounded-2xl">
+          <motion.div
+            whileHover={{ scale: 1.03 }}
+            className="text-center bg-gradient-to-br from-[#0b0b12] via-[#101022] to-[#161639] border-2 border-[#a855f7] hover:border-[#c084fc] shadow-[0_0_14px_rgba(168,85,247,0.25)] hover:shadow-[0_0_24px_rgba(192,132,252,0.45)] p-6 rounded-2xl min-h-80 flex flex-col justify-center transition-all duration-200"
+          >
+            <img src={stat.image} className="w-12 h-12 mx-auto mb-4 opacity-90" alt="Stat Icon" />
+            <div className="font-satoshi text-2xl sm:text-3xl font-semibold text-white mb-3">
+              {stat.value}
+            </div>
+            <div className="font-jetbrains text-purple-200/90">
+              {stat.label}
+            </div>
+          </motion.div>
               </div>
             ))}
           </motion.div>
         </div>
-
-        {/* <div className="absolute bottom-0 left-0 w-full h-1/5 bg-gradient-to-b from-transparent to-black"></div> */}
       </section>
 
     <section className="min-h-screen bg-[url('assets/landing/About.svg')] bg-cover  text-white px-6 md:px-12 py-12">
