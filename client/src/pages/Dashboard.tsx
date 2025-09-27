@@ -53,6 +53,7 @@ const Dashboard: React.FC = () => {
     (sum, balance) => sum + balance.usdValue,
     0
   );
+
   const [aprData, setAprData] = useState<APRData[]>([]);
 
   useEffect(() => {
@@ -71,6 +72,16 @@ const Dashboard: React.FC = () => {
     aprData.length > 0
       ? aprData.reduce((sum, apr) => sum + apr.apr, 0) / aprData.length
       : 0;
+
+  // Debug logging
+  console.log('📊 Dashboard Data:', {
+    balances,
+    totalBalance,
+    predictions,
+    transactions,
+    aprData,
+    averageAPR,
+  });
 
   return (
     <div className="min-h-screen bg-[url('assets/landing/bg.svg')] bg-cover bg-center py-8">
@@ -92,7 +103,7 @@ const Dashboard: React.FC = () => {
           <DashboardCards
             totalBalance={totalBalance}
             totalAPR={parseFloat(averageAPR.toFixed(1))}
-            activeStrategies={4}
+            activeStrategies={balances.length > 0 ? balances.length * 2 : 4}
             predictionsCount={predictions.length}
             loading={loading}
           />

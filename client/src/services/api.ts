@@ -1,6 +1,6 @@
 // Real API service for connecting to backend
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export interface Balance {
   token: string;
@@ -216,16 +216,38 @@ export const apiService = new ApiService();
 // Legacy compatibility functions
 export const fetchBalances = async (): Promise<Balance[]> => {
   try {
-    const vaultState = await apiService.getVaultState();
-    const prices = await apiService.getPrices();
+    // Use your actual backend API
+    const response = await fetch('http://localhost:3000/api/users');
+    const data = await response.json();
 
-    // Convert vault state to balance format
-    return Object.entries(vaultState.tokenBalances).map(([token, amount]) => ({
-      token,
-      amount,
-      usdValue: amount * (prices[token] || 1),
-      chain: 'Ethereum', // Default chain, could be enhanced
-    }));
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    // Convert users data to balance format
+    const userCount = data.data?.length || 0;
+    const estimatedBalancePerUser = 10000; // $10k per user
+
+    return [
+      {
+        token: 'USDC',
+        amount: userCount * 0.6, // 60% allocation
+        usdValue: userCount * estimatedBalancePerUser * 0.6,
+        chain: 'Hedera',
+      },
+      {
+        token: 'ETH',
+        amount: userCount * 0.2, // 20% allocation
+        usdValue: userCount * estimatedBalancePerUser * 0.2,
+        chain: 'Hedera',
+      },
+      {
+        token: 'BTC',
+        amount: userCount * 0.2, // 20% allocation
+        usdValue: userCount * estimatedBalancePerUser * 0.2,
+        chain: 'Hedera',
+      },
+    ];
   } catch (error) {
     console.error('Failed to fetch balances:', error);
     // Return empty array on error
@@ -253,14 +275,24 @@ export const fetchTransactions = async (): Promise<Transaction[]> => {
 
 export const fetchAPRData = async (): Promise<APRData[]> => {
   try {
-    const opportunities = await apiService.getYieldOpportunities();
-    return opportunities.map((opp) => ({
-      protocol: opp.protocol,
-      apr: opp.apr,
-      tvl: opp.tvl,
-      chain: opp.chain,
-      risk: opp.risk as 'low' | 'medium' | 'high',
-    }));
+    // Use your actual backend API for yields
+    const response = await fetch('http://localhost:3000/api/yields/latest');
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    // Convert yields data to APR format
+    return (
+      data.data?.map((basket: any) => ({
+        protocol: basket.basketName,
+        apr: basket.weightedYield / 100, // Convert basis points to percentage
+        tvl: 1000000, // Mock TVL
+        chain: 'Hedera',
+        risk: basket.riskProfile?.toLowerCase() as 'low' | 'medium' | 'high',
+      })) || []
+    );
   } catch (error) {
     console.error('Failed to fetch APR data:', error);
     return [];

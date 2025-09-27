@@ -15,10 +15,20 @@
     "contracts:test": "cd contracts && npm test",
     "backend:test": "cd backend && npm test"
   },
-  "keywords": ["hedera", "pyth", "1inch", "ai", "defi", "yield-optimization"],
+  "keywords": [
+    "hedera",
+    "pyth",
+    "1inch",
+    "ai",
+    "defi",
+    "yield-optimization"
+  ],
   "author": "Your Name",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "react-router-dom": "^7.9.3"
   }
 }
