@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useAccount } from 'wagmi';
 import DashboardCards from '../components/DashboardCards';
+import PersonalizedDashboardCards from '../components/PersonalizedDashboardCards';
+import BasketChart from '../components/BasketChart';
 import APRChart from '../components/Charts/APRChart';
 import PredictionList from '../components/PredictionList';
 import TransactionsTable from '../components/TransactionsTable';
 import AIPredictionCard from '../components/AIPredictionCard';
+import { usePersonalizedDashboard } from '../hooks/usePersonalizedDashboard';
 import { apiService } from '../services/api';
 import {
   fetchBalances,
@@ -19,11 +23,57 @@ import type {
   APRData,
 } from '../services/api';
 
+// Basket configurations matching the backend
+const BASKET_CONFIGS = {
+  0: {
+    name: 'Conservative',
+    riskProfile: 'Low',
+    assets: [
+      { symbol: 'USDC', allocation: 6000 },
+      { symbol: 'ETH', allocation: 2000 },
+      { symbol: 'BTC', allocation: 2000 },
+    ],
+  },
+  1: {
+    name: 'Balanced',
+    riskProfile: 'Medium',
+    assets: [
+      { symbol: 'ETH', allocation: 4000 },
+      { symbol: 'BTC', allocation: 3000 },
+      { symbol: 'SOL', allocation: 2000 },
+      { symbol: 'LINK', allocation: 1000 },
+    ],
+  },
+  2: {
+    name: 'Growth',
+    riskProfile: 'High',
+    assets: [
+      { symbol: 'SOL', allocation: 4000 },
+      { symbol: 'AVAX', allocation: 3000 },
+      { symbol: 'LINK', allocation: 2000 },
+      { symbol: 'MATIC', allocation: 1000 },
+    ],
+  },
+};
+
 const Dashboard: React.FC = () => {
+  const { address, isConnected } = useAccount();
   const [balances, setBalances] = useState<Balance[]>([]);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Personalized dashboard hook
+  const {
+    data: personalizedData,
+    portfolio,
+    transactions: userTransactions,
+    chartData,
+    loading: personalizedLoading,
+    error: personalizedError,
+    refetch: refetchPersonalized,
+    loadChartData,
+  } = usePersonalizedDashboard(isConnected ? address || null : null);
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -100,14 +150,32 @@ const Dashboard: React.FC = () => {
 
         {/* Dashboard Cards */}
         <div className="mb-8">
-          <DashboardCards
-            totalBalance={totalBalance}
-            totalAPR={parseFloat(averageAPR.toFixed(1))}
-            activeStrategies={balances.length > 0 ? balances.length * 2 : 4}
-            predictionsCount={predictions.length}
-            loading={loading}
-          />
+          {isConnected && personalizedData ? (
+            <PersonalizedDashboardCards
+              data={personalizedData.dashboard}
+              loading={personalizedLoading}
+            />
+          ) : (
+            <DashboardCards
+              totalBalance={totalBalance}
+              totalAPR={parseFloat(averageAPR.toFixed(1))}
+              activeStrategies={balances.length > 0 ? balances.length * 2 : 4}
+              predictionsCount={predictions.length}
+              loading={loading}
+            />
+          )}
         </div>
+
+        {/* Personalized Chart for Connected Users */}
+        {isConnected && personalizedData && chartData && (
+          <div className="mb-8">
+            <BasketChart
+              chartData={chartData}
+              loading={personalizedLoading}
+              onTimeframeChange={loadChartData}
+            />
+          </div>
+        )}
 
         {/* AI Prediction Card - Full Width */}
         <div className="mb-8">
@@ -133,7 +201,28 @@ const Dashboard: React.FC = () => {
               <span className="text-sm text-gray-500">Past insights</span>
             </div>
             <div className="max-h-96 overflow-y-auto pr-2">
-              <PredictionList predictions={predictions} loading={loading} />
+              <PredictionList
+                predictions={
+                  personalizedData?.performance?.predictions?.map(
+                    (pred: any) => ({
+                      id: pred.id,
+                      strategy: `${
+                        BASKET_CONFIGS[
+                          pred.recommended_basket as keyof typeof BASKET_CONFIGS
+                        ]?.name || 'Unknown'
+                      } Basket`,
+                      expectedReturn: (
+                        pred.expected_yield_basis_points / 100
+                      ).toFixed(1),
+                      confidence: pred.confidence_score,
+                      timeframe: 'Next Period',
+                      description: pred.reasoning,
+                      timestamp: new Date(pred.timestamp),
+                    })
+                  ) || []
+                }
+                loading={personalizedLoading}
+              />
             </div>
           </motion.div>
         </div>
@@ -148,10 +237,48 @@ const Dashboard: React.FC = () => {
             className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
           >
             <h3 className="text-lg font-semibold text-gray-900 mb-6">
-              Portfolio Distribution
+              {isConnected && personalizedData
+                ? 'Your Portfolio'
+                : 'Portfolio Distribution'}
             </h3>
 
-            {loading ? (
+            {isConnected && personalizedData && portfolio ? (
+              <div className="space-y-4">
+                {portfolio.portfolio.map((asset: any, index: number) => (
+                  <motion.div
+                    key={asset.symbol}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">
+                          {asset.symbol.slice(0, 1)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {asset.symbol}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {(asset.allocation * 100).toFixed(1)}% allocation
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">
+                        ${asset.usdValue.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {asset.amount.toFixed(4)} {asset.symbol}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            ) : loading || personalizedLoading ? (
               <div className="space-y-4">
                 {[...Array(4)].map((_, index) => (
                   <div
@@ -249,7 +376,26 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Transactions Table */}
-        <TransactionsTable transactions={transactions} loading={loading} />
+        <TransactionsTable
+          transactions={
+            isConnected && userTransactions
+              ? userTransactions.map((tx: any) => ({
+                  id: tx.id,
+                  type: 'rebalance' as const,
+                  amount:
+                    tx.swap_data?.toTokens?.reduce(
+                      (sum: number, token: any) => sum + token.amount,
+                      0
+                    ) || 0,
+                  token: tx.swap_data?.toTokens?.[0]?.symbol || 'ETH',
+                  hash: tx.transaction_hash || '',
+                  timestamp: new Date(tx.timestamp),
+                  status: tx.status,
+                }))
+              : transactions
+          }
+          loading={loading || personalizedLoading}
+        />
       </div>
     </div>
   );
