@@ -213,10 +213,107 @@ class ApiService {
 
 export const apiService = new ApiService();
 
-// Legacy compatibility functions
-export const fetchBalances = async (): Promise<Balance[]> => {
+// Wallet-based API functions
+export const fetchUserDashboard = async (walletAddress: string) => {
   try {
-    // Use your actual backend API
+    const response = await fetch(
+      `http://localhost:3000/api/users/${walletAddress}/dashboard`
+    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        `HTTP ${response.status}: ${data.message || 'Unknown error'}`
+      );
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error('Failed to fetch user dashboard:', error);
+    throw error;
+  }
+};
+
+export const fetchUserPortfolio = async (walletAddress: string) => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/users/${walletAddress}/portfolio`
+    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        `HTTP ${response.status}: ${data.message || 'Unknown error'}`
+      );
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error('Failed to fetch user portfolio:', error);
+    throw error;
+  }
+};
+
+export const fetchUserTransactions = async (walletAddress: string) => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/users/${walletAddress}/transactions`
+    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        `HTTP ${response.status}: ${data.message || 'Unknown error'}`
+      );
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error('Failed to fetch user transactions:', error);
+    throw error;
+  }
+};
+
+export const fetchBasketChart = async (
+  basketId: number,
+  timeframe: string = '7d'
+) => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/yields/basket/${basketId}/chart?timeframe=${timeframe}`
+    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        `HTTP ${response.status}: ${data.message || 'Unknown error'}`
+      );
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error('Failed to fetch basket chart:', error);
+    throw error;
+  }
+};
+
+// Legacy compatibility functions (for backward compatibility)
+export const fetchBalances = async (
+  walletAddress?: string
+): Promise<Balance[]> => {
+  try {
+    if (walletAddress) {
+      // Use personalized portfolio data
+      const portfolio = await fetchUserPortfolio(walletAddress);
+      return portfolio.portfolio.map((asset) => ({
+        token: asset.symbol,
+        amount: asset.amount,
+        usdValue: asset.usdValue,
+        chain: 'Hedera',
+      }));
+    }
+
+    // Fallback to global data
     const response = await fetch('http://localhost:3000/api/users');
     const data = await response.json();
 
