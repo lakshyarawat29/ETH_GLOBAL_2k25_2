@@ -137,14 +137,20 @@ const Profile: React.FC = () => {
         investmentPeriod,
       };
 
+      console.log('Saving profile data:', profileData);
+
       let updatedProfile;
       if (userProfile) {
         // Update existing profile
+        console.log('Updating existing profile...');
         updatedProfile = await updateUserProfile(address, profileData);
       } else {
         // Complete new profile setup
+        console.log('Creating new profile...');
         updatedProfile = await completeUserProfile(address, profileData);
       }
+
+      console.log('Profile update result:', updatedProfile);
 
       if (updatedProfile) {
         setUserProfile(updatedProfile);
@@ -152,27 +158,37 @@ const Profile: React.FC = () => {
           duration: 3000,
           position: 'top-right',
           style: {
-            background: '#FFFFFF',
-            color: '#111827',
-            border: '1px solid #F3F4F6',
+            background: '#10B981',
+            color: '#FFFFFF',
+            border: '1px solid #059669',
             borderRadius: '0.75rem',
-            boxShadow:
-              '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)',
-          },
-          iconTheme: {
-            primary: '#7C3AED',
-            secondary: '#FFFFFF',
+            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
           },
         });
 
-        // Redirect to dashboard
-        navigate('/dashboard');
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1000);
       } else {
-        throw new Error('Failed to save profile');
+        throw new Error('No profile data returned from API');
       }
     } catch (error) {
       console.error('Error saving profile:', error);
-      toast.error('Failed to save profile. Please try again.');
+      toast.error(
+        `Failed to save profile: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+        {
+          duration: 5000,
+          style: {
+            background: '#EF4444',
+            color: '#FFFFFF',
+            border: '1px solid #DC2626',
+            borderRadius: '0.75rem',
+          },
+        }
+      );
     } finally {
       setSaving(false);
     }

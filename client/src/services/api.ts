@@ -2,6 +2,46 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
+// Utility function for API calls with retry logic
+const apiCallWithRetry = async (
+  url: string,
+  options: RequestInit,
+  maxRetries: number = 3
+): Promise<Response> => {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      // If it's a rate limit error and we have retries left, wait and retry
+      if (response.status === 429 && attempt < maxRetries) {
+        const waitTime = attempt * 1000; // Exponential backoff: 1s, 2s, 3s
+        console.log(
+          `API: Rate limited, waiting ${waitTime}ms before retry ${attempt}/${maxRetries}...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+
+      // If it's not a network error or we've exhausted retries, throw immediately
+      if (attempt === maxRetries) {
+        throw lastError;
+      }
+
+      // Wait before retrying for network errors
+      const waitTime = attempt * 1000;
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+    }
+  }
+
+  throw lastError || new Error('Max retries exceeded');
+};
+
 export interface Balance {
   token: string;
   amount: number;
@@ -448,7 +488,14 @@ export const updateUserProfile = async (
   >
 ): Promise<UserProfile | null> => {
   try {
-    const response = await fetch(
+    console.log(
+      'API: Updating profile for',
+      walletAddress,
+      'with data:',
+      profileData
+    );
+
+    const response = await apiCallWithRetry(
       `http://localhost:3000/api/users/${walletAddress}/profile`,
       {
         method: 'PUT',
@@ -459,15 +506,27 @@ export const updateUserProfile = async (
       }
     );
 
+    console.log('API: Response status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('API: Error response:', errorText);
+      throw new Error(
+        `HTTP error! status: ${response.status}, message: ${errorText}`
+      );
     }
 
     const data = await response.json();
-    return data.success ? data.data : null;
+    console.log('API: Response data:', data);
+
+    if (data.success) {
+      return data.data;
+    } else {
+      throw new Error(data.message || 'Profile update failed');
+    }
   } catch (error) {
     console.error('Error updating user profile:', error);
-    return null;
+    throw error; // Re-throw to let the calling function handle it
   }
 };
 
@@ -481,7 +540,14 @@ export const completeUserProfile = async (
   }
 ): Promise<UserProfile | null> => {
   try {
-    const response = await fetch(
+    console.log(
+      'API: Completing profile for',
+      walletAddress,
+      'with data:',
+      profileData
+    );
+
+    const response = await apiCallWithRetry(
       `http://localhost:3000/api/users/${walletAddress}/profile/complete`,
       {
         method: 'POST',
@@ -492,15 +558,27 @@ export const completeUserProfile = async (
       }
     );
 
+    console.log('API: Response status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('API: Error response:', errorText);
+      throw new Error(
+        `HTTP error! status: ${response.status}, message: ${errorText}`
+      );
     }
 
     const data = await response.json();
-    return data.success ? data.data : null;
+    console.log('API: Response data:', data);
+
+    if (data.success) {
+      return data.data;
+    } else {
+      throw new Error(data.message || 'Profile completion failed');
+    }
   } catch (error) {
     console.error('Error completing user profile:', error);
-    return null;
+    throw error; // Re-throw to let the calling function handle it
   }
 };
 
