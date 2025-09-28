@@ -12,6 +12,7 @@ import {
 import { WagmiProvider } from 'wagmi';
 import { mainnet, polygon, optimism, arbitrum, base } from 'wagmi/chains';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
 
 const config = getDefaultConfig({
   appName: 'Hedera AI Basket DeFi',
@@ -40,6 +41,18 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
           })}
         >
           <App />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#1F2937',
+                color: '#F9FAFB',
+                border: '1px solid #374151',
+                borderRadius: '0.75rem',
+              },
+            }}
+          />
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

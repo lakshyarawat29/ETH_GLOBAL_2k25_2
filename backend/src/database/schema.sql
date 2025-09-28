@@ -6,11 +6,20 @@ CREATE DATABASE IF NOT EXISTS hedera_basket_db;
 -- Use the database
 \c hedera_basket_db;
 
--- Users table
+-- Users table with extended profile fields
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     wallet_address VARCHAR(42) UNIQUE NOT NULL,
     selected_basket INTEGER NOT NULL CHECK (selected_basket >= 0 AND selected_basket <= 2),
+    -- Profile fields
+    display_name VARCHAR(100),
+    risk_preference VARCHAR(20) CHECK (risk_preference IN ('Conservative', 'Moderate', 'Aggressive')),
+    initial_deposit_amount DECIMAL(18, 2),
+    investment_period VARCHAR(20) CHECK (investment_period IN ('1 month', '3 months', '6 months', '1 year')),
+    total_deposits DECIMAL(18, 2) DEFAULT 0,
+    total_earned DECIMAL(18, 2) DEFAULT 0,
+    active_since TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Original fields
     registration_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_registered BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
